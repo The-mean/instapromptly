@@ -1,103 +1,143 @@
-import Image from "next/image";
+'use client';
+
+import React, { useEffect, useState } from "react";
+import PromptInput from "@/components/PromptInput";
+import ResultPanel from "@/components/result-panel";
+
+const DAILY_LIMIT = 3;
+const STORAGE_KEY = "instapromptly_usage";
+
+function getToday() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10); // YYYY-MM-DD
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [topic, setTopic] = useState("");
+  const [tone, setTone] = useState("eğlenceli");
+  const [results, setResults] = useState<{
+    titles: string[];
+    hashtags: string[];
+    cta: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usage, setUsage] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Pro kullanıcı kontrolü
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const proEmail = localStorage.getItem("proEmail");
+    if (proEmail === "lutbal3@gmail.com") {
+      setIsPro(true);
+      setLimitReached(false);
+      return;
+    }
+    if (proEmail) {
+      fetch(`/api/check-pro?email=${encodeURIComponent(proEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.isPro) {
+            setIsPro(true);
+            setLimitReached(false);
+          }
+        })
+        .catch(() => { });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.date === getToday()) {
+          setUsage(parsed.count);
+          setLimitReached(parsed.count >= DAILY_LIMIT && !isPro);
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: getToday(), count: 0 }));
+          setUsage(0);
+          setLimitReached(false);
+        }
+      } catch {
+        setUsage(0);
+        setLimitReached(false);
+      }
+    }
+  }, [isPro]);
+
+  const incrementUsage = () => {
+    const newCount = usage + 1;
+    setUsage(newCount);
+    setLimitReached(newCount >= DAILY_LIMIT && !isPro);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: getToday(), count: newCount }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (limitReached) return;
+    setLoading(true);
+    setResults(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, tone }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Bir hata oluştu.");
+      }
+      const data = await res.json();
+      setResults({
+        titles: [data.headline],
+        hashtags: data.hashtags,
+        cta: data.cta,
+      });
+      incrementUsage();
+    } catch (err: any) {
+      setError(err.message || "Bir hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+      <h1 className="text-3xl font-bold mb-6 text-center text-gray-900 dark:text-white">InstaPromptly</h1>
+      {limitReached && !isPro && (
+        <div className="text-red-600 mb-4 font-semibold">
+          Daily limit reached.
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+      <PromptInput
+        topic={topic}
+        setTopic={setTopic}
+        tone={tone}
+        setTone={setTone}
+        loading={loading || (limitReached && !isPro)}
+        handleSubmit={handleSubmit}
+      />
+      {error && <div className="text-red-600 mb-4">{error}</div>}
+      <ResultPanel results={results} loading={loading} />
+      {!isPro && (
+        <div className="mt-4 text-sm text-gray-500">Free uses left: {Math.max(0, DAILY_LIMIT - usage)}</div>
+      )}
+      <a
+        href="https://buymeacoffee.com/lutbal3j/membership"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 inline-block px-6 py-2 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-600 transition"
+      >
+        🔓 Go Pro (BuyMeACoffee)
+      </a>
+      {isPro && (
+        <div className="mt-4 text-green-600 font-semibold">Pro membership active. Unlimited usage unlocked! 🎉</div>
+      )}
     </div>
   );
 }

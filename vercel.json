@@ -1,0 +1,20 @@
+{
+    "version": 3,
+    "routes": [
+        {
+            "src": "/api/generate",
+            "methods": [
+                "POST"
+            ],
+            "dest": "/api/generate"
+        }
+    ],
+    "functions": {
+        "api/generate.ts": {
+            "runtime": "edge"
+        },
+        "api/generate/route.ts": {
+            "runtime": "edge"
+        }
+    }
+}
