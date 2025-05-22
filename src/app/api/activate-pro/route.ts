@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
             [email]
         );
         return NextResponse.json({ success: true });
-    } catch (e: any) {
+    } catch (e: Error) {
         return NextResponse.json({ error: e.message || "Database error." }, { status: 500 });
     }
 } 

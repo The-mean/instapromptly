@@ -99,8 +99,9 @@ export default function Home() {
         cta: data.cta,
       });
       incrementUsage();
-    } catch (err: any) {
-      setError(err.message || "Bir hata oluştu.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Bir hata oluştu.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

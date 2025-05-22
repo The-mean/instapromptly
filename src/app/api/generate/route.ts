@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
+interface InstagramContent {
+    headline: string;
+    hashtags: string[];
+    cta: string;
+}
+
 export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
@@ -35,10 +41,10 @@ export async function POST(req: NextRequest) {
         }
 
         const data = await openaiRes.json();
-        let content = data.choices?.[0]?.message?.content;
+        const content = data.choices?.[0]?.message?.content;
         // Yanıtı logla (geliştirme için, prod'da kaldırılabilir)
         console.log("OpenAI yanıtı:", content);
-        let json: any = null;
+        let json: InstagramContent | null = null;
         try {
             json = JSON.parse(content);
         } catch {
@@ -55,7 +61,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "OpenAI yanıtı beklenen formatta değil.", raw: content }, { status: 500 });
         }
         return NextResponse.json(json);
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+    } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 } 

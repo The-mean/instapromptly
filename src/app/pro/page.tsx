@@ -8,7 +8,7 @@ export default function ProRedirectPage() {
     useEffect(() => {
         localStorage.setItem('isProUser', 'true');
         router.push('/');
-    }, []);
+    }, [router]);
 
     return (
         <div className="h-screen flex flex-col justify-center items-center">

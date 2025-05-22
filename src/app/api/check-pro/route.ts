@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
         );
         const isPro = Array.isArray(rows) && rows.length > 0;
         return NextResponse.json({ isPro });
-    } catch (e: any) {
+    } catch (e: Error) {
         return NextResponse.json({ error: e.message || "Database error." }, { status: 500 });
     }
 } 
