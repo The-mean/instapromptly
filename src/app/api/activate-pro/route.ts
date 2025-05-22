@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
             [email]
         );
         return NextResponse.json({ success: true });
-    } catch (e: Error) {
-        return NextResponse.json({ error: e.message || "Database error." }, { status: 500 });
+    } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "Database error.";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 } 
