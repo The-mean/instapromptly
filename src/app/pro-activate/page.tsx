@@ -38,8 +38,9 @@ export default function ProActivatePage() {
             } else {
                 setError(data.error || 'Activation failed.');
             }
-        } catch (err: any) {
-            setError(err.message || 'Activation failed.');
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Activation failed.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
